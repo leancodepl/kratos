@@ -97,10 +97,6 @@ func (s *Strategy) decode(r *http.Request) (*updateRegistrationFlowWithPasskeyMe
 func (s *Strategy) Register(w http.ResponseWriter, r *http.Request, regFlow *registration.Flow, ident *identity.Identity) (err error) {
 	ctx := r.Context()
 
-	if regFlow.Type != flow.TypeBrowser {
-		return flow.ErrStrategyNotResponsible
-	}
-
 	params, err := s.decode(r)
 	if err != nil {
 		return s.handleRegistrationError(w, r, regFlow, params, err)
@@ -199,9 +195,6 @@ type passkeyCreateData struct {
 
 func (s *Strategy) PopulateRegistrationMethod(r *http.Request, regFlow *registration.Flow) error {
 	ctx := r.Context()
-	if regFlow.Type != flow.TypeBrowser {
-		return nil
-	}
 
 	defaultSchemaURL, err := s.d.Config().DefaultIdentityTraitsSchemaURL(ctx)
 	if err != nil {

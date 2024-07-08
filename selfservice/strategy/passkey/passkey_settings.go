@@ -42,10 +42,6 @@ const (
 )
 
 func (s *Strategy) PopulateSettingsMethod(r *http.Request, id *identity.Identity, f *settings.Flow) error {
-	if f.Type != flow.TypeBrowser {
-		return nil
-	}
-
 	f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
 
 	confidentialIdentity, err := s.d.PrivilegedIdentityPool().GetIdentityConfidential(r.Context(), id.ID)
@@ -157,9 +153,6 @@ func (s *Strategy) identityListWebAuthn(id *identity.Identity) (*identity.Creden
 }
 
 func (s *Strategy) Settings(w http.ResponseWriter, r *http.Request, f *settings.Flow, ss *session.Session) (*settings.UpdateContext, error) {
-	if f.Type != flow.TypeBrowser {
-		return nil, errors.WithStack(flow.ErrStrategyNotResponsible)
-	}
 	var p updateSettingsFlowWithPasskeyMethod
 	ctxUpdate, err := settings.PrepareUpdate(s.d, w, r, f, ss, settings.ContinuityKey(s.SettingsStrategyID()), &p)
 	if errors.Is(err, settings.ErrContinuePreviousAction) {

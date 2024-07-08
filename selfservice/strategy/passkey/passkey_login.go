@@ -34,7 +34,7 @@ func (s *Strategy) RegisterLoginRoutes(r *x.RouterPublic) {
 }
 
 func (s *Strategy) PopulateLoginMethod(r *http.Request, aal identity.AuthenticatorAssuranceLevel, sr *login.Flow) error {
-	if sr.Type != flow.TypeBrowser || aal != identity.AuthenticatorAssuranceLevel1 {
+	if aal != identity.AuthenticatorAssuranceLevel1 {
 		return nil
 	}
 
@@ -259,10 +259,6 @@ type updateLoginFlowWithPasskeyMethod struct {
 }
 
 func (s *Strategy) Login(w http.ResponseWriter, r *http.Request, f *login.Flow, _ *session.Session) (i *identity.Identity, err error) {
-	if f.Type != flow.TypeBrowser {
-		return nil, flow.ErrStrategyNotResponsible
-	}
-
 	var p updateLoginFlowWithPasskeyMethod
 	if err := s.hd.Decode(r, &p,
 		decoderx.HTTPDecoderSetValidatePayloads(true),

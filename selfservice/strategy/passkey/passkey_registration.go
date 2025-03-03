@@ -104,11 +104,6 @@ func (s *Strategy) Register(w http.ResponseWriter, r *http.Request, regFlow *reg
 	ctx, span := s.d.Tracer(r.Context()).Tracer().Start(r.Context(), "selfservice.strategy.passkey.strategy.Register")
 	defer otelx.End(span, &err)
 
-	if regFlow.Type != flow.TypeBrowser {
-		span.SetAttributes(attribute.String("not_responsible_reason", "flow type is not browser"))
-		return flow.ErrStrategyNotResponsible
-	}
-
 	params, err := s.decode(r)
 	if err != nil {
 		return s.handleRegistrationError(w, r, regFlow, params, err)
@@ -208,9 +203,6 @@ type passkeyCreateData struct {
 
 func (s *Strategy) PopulateRegistrationMethod(r *http.Request, regFlow *registration.Flow) error {
 	ctx := r.Context()
-	if regFlow.Type != flow.TypeBrowser {
-		return nil
-	}
 
 	defaultSchemaURL, err := s.d.Config().DefaultIdentityTraitsSchemaURL(ctx)
 	if err != nil {

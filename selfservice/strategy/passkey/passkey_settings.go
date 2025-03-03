@@ -49,10 +49,6 @@ const (
 )
 
 func (s *Strategy) PopulateSettingsMethod(r *http.Request, id *identity.Identity, f *settings.Flow) error {
-	if f.Type != flow.TypeBrowser {
-		return nil
-	}
-
 	f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
 
 	confidentialIdentity, err := s.d.PrivilegedIdentityPool().GetIdentityConfidential(r.Context(), id.ID)
@@ -169,10 +165,6 @@ func (s *Strategy) Settings(w http.ResponseWriter, r *http.Request, f *settings.
 	ctx, span := s.d.Tracer(r.Context()).Tracer().Start(r.Context(), "selfservice.strategy.passkey.strategy.Settings")
 	defer otelx.End(span, &err)
 
-	if f.Type != flow.TypeBrowser {
-		span.SetAttributes(attribute.String("not_responsible_reason", "not a browser flow"))
-		return nil, errors.WithStack(flow.ErrStrategyNotResponsible)
-	}
 	var p updateSettingsFlowWithPasskeyMethod
 	ctxUpdate, err := settings.PrepareUpdate(s.d, w, r, f, ss, settings.ContinuityKey(s.SettingsStrategyID()), &p)
 	if errors.Is(err, settings.ErrContinuePreviousAction) {

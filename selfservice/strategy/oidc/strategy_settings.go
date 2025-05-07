@@ -143,10 +143,6 @@ func (s *Strategy) linkableProviders(conf *ConfigurationCollection, confidential
 func (s *Strategy) PopulateSettingsMethod(r *http.Request, id *identity.Identity, sr *settings.Flow) error {
 	ctx := r.Context()
 
-	if sr.Type != flow.TypeBrowser {
-		return nil
-	}
-
 	conf, err := s.Config(ctx)
 	if err != nil {
 		return err
@@ -168,7 +164,9 @@ func (s *Strategy) PopulateSettingsMethod(r *http.Request, id *identity.Identity
 	}
 
 	sr.UI.GetNodes().Remove("unlink", "link")
-	sr.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	if sr.Type == flow.TypeBrowser {
+		sr.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	}
 	for _, l := range linkable {
 		// We do not want to offer to link SSO providers in the settings.
 		if l.Config().OrganizationID != "" {
@@ -243,6 +241,27 @@ type updateSettingsFlowWithOidcMethod struct {
 	//
 	// required: false
 	UpstreamParameters json.RawMessage `json:"upstream_parameters"`
+
+	// IDToken is an optional id token provided by an OIDC provider
+	//
+	// If submitted, it is verified using the OIDC provider's public key set and the claims are used to populate
+	// the OIDC credentials of the identity.
+	//
+	// Supported providers are
+	// - Apple
+	// - Google
+	// type: string
+	// in: body
+	// required: false
+	IDToken string `json:"id_token,omitempty"`
+
+	// IDTokenNonce is the nonce, used when generating the IDToken.
+	// If the provider supports nonce validation, the nonce will be validated against this value and required.
+	//
+	// type: string
+	// in: body
+	// required: false
+	IDTokenNonce string `json:"id_token_nonce,omitempty"`
 
 	// Transient data to pass along to any webhooks
 	//
@@ -371,6 +390,18 @@ func (s *Strategy) initLinkProvider(w http.ResponseWriter, r *http.Request, ctxU
 	req, err := s.validateFlow(ctx, r, ctxUpdate.Flow.ID)
 	if err != nil {
 		return s.handleSettingsError(w, r, ctxUpdate, p, err)
+	}
+
+	if p.IDToken != "" {
+		claims, err := s.processIDToken(r, provider, p.IDToken, p.IDTokenNonce)
+		if err != nil {
+			return s.handleSettingsError(w, r, ctxUpdate, p, err)
+		}
+		err = s.linkProvider(w, r, ctxUpdate, nil, claims, provider)
+		if err != nil {
+			return s.handleSettingsError(w, r, ctxUpdate, p, err)
+		}
+		return errors.WithStack(flow.ErrCompletedByStrategy)
 	}
 
 	state, pkce, err := s.GenerateState(ctx, provider, ctxUpdate.Flow.ID)
@@ -515,7 +546,9 @@ func (s *Strategy) handleSettingsError(w http.ResponseWriter, r *http.Request, c
 
 	if ctxUpdate.Flow != nil {
 		ctxUpdate.Flow.UI.ResetMessages()
-		ctxUpdate.Flow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+		if ctxUpdate.Flow.Type == flow.TypeBrowser {
+			ctxUpdate.Flow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+		}
 	}
 
 	return err

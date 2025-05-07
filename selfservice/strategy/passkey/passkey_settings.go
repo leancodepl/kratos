@@ -49,7 +49,9 @@ const (
 )
 
 func (s *Strategy) PopulateSettingsMethod(r *http.Request, id *identity.Identity, f *settings.Flow) error {
-	f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	if f.Type == flow.TypeBrowser {
+		f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	}
 
 	confidentialIdentity, err := s.d.PrivilegedIdentityPool().GetIdentityConfidential(r.Context(), id.ID)
 	if err != nil {
@@ -109,19 +111,21 @@ func (s *Strategy) PopulateSettingsMethod(r *http.Request, id *identity.Identity
 		return errors.WithStack(err)
 	}
 
-	f.UI.Nodes.Upsert(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(r.Context())))
+	if f.Type == flow.TypeBrowser {
+		f.UI.Nodes.Upsert(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(r.Context())))
 
-	f.UI.Nodes.Upsert(node.NewInputField(
-		node.PasskeyRegisterTrigger,
-		"",
-		node.PasskeyGroup,
-		node.InputAttributeTypeButton,
-		node.WithInputAttributes(func(a *node.InputAttributes) {
-			//nolint:staticcheck
-			a.OnClick = js.WebAuthnTriggersPasskeySettingsRegistration.String() + "()"
-			a.OnClickTrigger = js.WebAuthnTriggersPasskeySettingsRegistration
-		}),
-	).WithMetaLabel(text.NewInfoSelfServiceSettingsRegisterPasskey()))
+		f.UI.Nodes.Upsert(node.NewInputField(
+			node.PasskeyRegisterTrigger,
+			"",
+			node.PasskeyGroup,
+			node.InputAttributeTypeButton,
+			node.WithInputAttributes(func(a *node.InputAttributes) {
+				//nolint:staticcheck
+				a.OnClick = js.WebAuthnTriggersPasskeySettingsRegistration.String() + "()"
+				a.OnClickTrigger = js.WebAuthnTriggersPasskeySettingsRegistration
+			}),
+		).WithMetaLabel(text.NewInfoSelfServiceSettingsRegisterPasskey()))
+	}
 
 	f.UI.Nodes.Upsert(&node.Node{
 		Type:  node.Input,
@@ -422,7 +426,9 @@ func (s *Strategy) handleSettingsError(ctx context.Context, w http.ResponseWrite
 
 	if ctxUpdate.Flow != nil {
 		ctxUpdate.Flow.UI.ResetMessages()
-		ctxUpdate.Flow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+		if ctxUpdate.Flow.Type == flow.TypeBrowser {
+			ctxUpdate.Flow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+		}
 	}
 
 	return err

@@ -255,7 +255,9 @@ func (s *Strategy) PopulateRegistrationMethod(r *http.Request, regFlow *registra
 		return errors.WithStack(err)
 	}
 
-	regFlow.UI.Nodes.Upsert(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(ctx)))
+	if regFlow.Type == flow.TypeBrowser {
+		regFlow.UI.Nodes.Upsert(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(ctx)))
+	}
 
 	regFlow.UI.Nodes.Upsert(&node.Node{
 		Type:  node.Input,
@@ -265,7 +267,8 @@ func (s *Strategy) PopulateRegistrationMethod(r *http.Request, regFlow *registra
 			Name:       node.PasskeyCreateData,
 			Type:       node.InputAttributeTypeHidden,
 			FieldValue: string(injectWebAuthnOptions),
-		}})
+		},
+	})
 
 	regFlow.UI.Nodes.Upsert(&node.Node{
 		Type:  node.Input,
@@ -274,22 +277,28 @@ func (s *Strategy) PopulateRegistrationMethod(r *http.Request, regFlow *registra
 		Attributes: &node.InputAttributes{
 			Name: node.PasskeyRegister,
 			Type: node.InputAttributeTypeHidden,
-		}})
+		},
+	})
 
-	regFlow.UI.Nodes.Append(&node.Node{
-		Type:  node.Input,
-		Group: node.PasskeyGroup,
-		Meta:  &node.Meta{Label: text.NewInfoSelfServiceRegistrationRegisterPasskey()},
-		Attributes: &node.InputAttributes{
-			Name:           node.PasskeyRegisterTrigger,
-			Type:           node.InputAttributeTypeButton,
-			OnClick:        js.WebAuthnTriggersPasskeyRegistration.String() + "()", // defined in webauthn.js
-			OnClickTrigger: js.WebAuthnTriggersPasskeyRegistration,
-		}})
+	if regFlow.Type == flow.TypeBrowser {
+		regFlow.UI.Nodes.Append(&node.Node{
+			Type:  node.Input,
+			Group: node.PasskeyGroup,
+			Meta:  &node.Meta{Label: text.NewInfoSelfServiceRegistrationRegisterPasskey()},
+			Attributes: &node.InputAttributes{
+				Name:           node.PasskeyRegisterTrigger,
+				Type:           node.InputAttributeTypeButton,
+				OnClick:        js.WebAuthnTriggersPasskeyRegistration.String() + "()", // defined in webauthn.js
+				OnClickTrigger: js.WebAuthnTriggersPasskeyRegistration,
+			},
+		})
+	}
 
 	// Passkey nodes end
 
-	regFlow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	if regFlow.Type == flow.TypeBrowser {
+		regFlow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	}
 
 	return nil
 }

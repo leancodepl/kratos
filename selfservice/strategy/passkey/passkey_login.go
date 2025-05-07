@@ -48,7 +48,9 @@ func (s *Strategy) RegisterLoginRoutes(r *x.RouterPublic) {
 func (s *Strategy) populateLoginMethodForPasskeys(r *http.Request, loginFlow *login.Flow) error {
 	ctx := r.Context()
 
-	loginFlow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	if loginFlow.Type == flow.TypeBrowser {
+		loginFlow.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	}
 
 	ds, err := s.d.Config().DefaultIdentityTraitsSchemaURL(r.Context())
 	if err != nil {
@@ -103,19 +105,21 @@ func (s *Strategy) populateLoginMethodForPasskeys(r *http.Request, loginFlow *lo
 		},
 	})
 
-	loginFlow.UI.Nodes.Upsert(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(ctx)))
+	if loginFlow.Type == flow.TypeBrowser {
+		loginFlow.UI.Nodes.Upsert(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(ctx)))
 
-	loginFlow.UI.Nodes.Upsert(&node.Node{
-		Type:  node.Input,
-		Group: node.PasskeyGroup,
-		Meta:  &node.Meta{},
-		Attributes: &node.InputAttributes{
-			Name:          node.PasskeyLogin,
-			Type:          node.InputAttributeTypeHidden,
-			OnLoad:        js.WebAuthnTriggersPasskeyLoginAutocompleteInit.String() + "()",
-			OnLoadTrigger: js.WebAuthnTriggersPasskeyLoginAutocompleteInit,
-		},
-	})
+		loginFlow.UI.Nodes.Upsert(&node.Node{
+			Type:  node.Input,
+			Group: node.PasskeyGroup,
+			Meta:  &node.Meta{},
+			Attributes: &node.InputAttributes{
+				Name:          node.PasskeyLogin,
+				Type:          node.InputAttributeTypeHidden,
+				OnLoad:        js.WebAuthnTriggersPasskeyLoginAutocompleteInit.String() + "()",
+				OnLoadTrigger: js.WebAuthnTriggersPasskeyLoginAutocompleteInit,
+			},
+		})
+	}
 
 	return nil
 }
@@ -355,7 +359,9 @@ func (s *Strategy) PopulateLoginMethodFirstFactorRefresh(r *http.Request, f *log
 		},
 	})
 
-	f.UI.Nodes.Append(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(ctx)))
+	if f.Type == flow.TypeBrowser {
+		f.UI.Nodes.Append(webauthnx.NewWebAuthnScript(s.d.Config().SelfPublicURL(ctx)))
+	}
 
 	f.UI.Nodes.Upsert(&node.Node{
 		Type:  node.Input,
@@ -367,19 +373,22 @@ func (s *Strategy) PopulateLoginMethodFirstFactorRefresh(r *http.Request, f *log
 		},
 	})
 
-	f.UI.Nodes.Append(node.NewInputField(
-		node.PasskeyLoginTrigger,
-		"",
-		node.PasskeyGroup,
-		node.InputAttributeTypeButton,
-		node.WithInputAttributes(func(attr *node.InputAttributes) {
-			//nolint:staticcheck
-			attr.OnClick = js.WebAuthnTriggersPasskeyLogin.String() + "()" // this function is defined in webauthn.js
-			attr.OnClickTrigger = js.WebAuthnTriggersPasskeyLogin
-		}),
-	).WithMetaLabel(text.NewInfoSelfServiceLoginPasskey()))
+	if f.Type == flow.TypeBrowser {
+		f.UI.Nodes.Append(node.NewInputField(
+			node.PasskeyLoginTrigger,
+			"",
+			node.PasskeyGroup,
+			node.InputAttributeTypeButton,
+			node.WithInputAttributes(func(attr *node.InputAttributes) {
+				//nolint:staticcheck
+				attr.OnClick = js.WebAuthnTriggersPasskeyLogin.String() + "()" // this function is defined in webauthn.js
+				attr.OnClickTrigger = js.WebAuthnTriggersPasskeyLogin
+			}),
+		).WithMetaLabel(text.NewInfoSelfServiceLoginPasskey()))
 
-	f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+		f.UI.SetCSRF(s.d.GenerateCSRFToken(r))
+	}
+
 	f.UI.SetNode(node.NewInputField(
 		"identifier",
 		passkeyIdentifier,
@@ -395,21 +404,23 @@ func (s *Strategy) PopulateLoginMethodFirstFactor(r *http.Request, f *login.Flow
 		return err
 	}
 
-	f.UI.Nodes.Append(node.NewInputField(
-		node.PasskeyLoginTrigger,
-		"",
-		node.PasskeyGroup,
-		node.InputAttributeTypeButton,
-		node.WithInputAttributes(func(attr *node.InputAttributes) {
-			//nolint:staticcheck
-			attr.OnClick = js.WebAuthnTriggersPasskeyLogin.String() + "()" // this function is defined in webauthn.js
-			attr.OnClickTrigger = js.WebAuthnTriggersPasskeyLogin
+	if f.Type == flow.TypeBrowser {
+		f.UI.Nodes.Append(node.NewInputField(
+			node.PasskeyLoginTrigger,
+			"",
+			node.PasskeyGroup,
+			node.InputAttributeTypeButton,
+			node.WithInputAttributes(func(attr *node.InputAttributes) {
+				//nolint:staticcheck
+				attr.OnClick = js.WebAuthnTriggersPasskeyLogin.String() + "()" // this function is defined in webauthn.js
+				attr.OnClickTrigger = js.WebAuthnTriggersPasskeyLogin
 
-			//nolint:staticcheck
-			attr.OnLoad = js.WebAuthnTriggersPasskeyLoginAutocompleteInit.String() + "()" // same here
-			attr.OnLoadTrigger = js.WebAuthnTriggersPasskeyLoginAutocompleteInit
-		}),
-	).WithMetaLabel(text.NewInfoSelfServiceLoginPasskey()))
+				//nolint:staticcheck
+				attr.OnLoad = js.WebAuthnTriggersPasskeyLoginAutocompleteInit.String() + "()" // same here
+				attr.OnLoadTrigger = js.WebAuthnTriggersPasskeyLoginAutocompleteInit
+			}),
+		).WithMetaLabel(text.NewInfoSelfServiceLoginPasskey()))
+	}
 
 	return nil
 }
@@ -437,18 +448,20 @@ func (s *Strategy) PopulateLoginMethodIdentifierFirstCredentials(r *http.Request
 		}
 	}
 
-	if count > 0 || s.d.Config().SecurityAccountEnumerationMitigate(ctx) {
-		sr.UI.Nodes.Append(node.NewInputField(
-			node.PasskeyLoginTrigger,
-			"",
-			node.PasskeyGroup,
-			node.InputAttributeTypeButton,
-			node.WithInputAttributes(func(attr *node.InputAttributes) {
-				//nolint:staticcheck
-				attr.OnClick = js.WebAuthnTriggersPasskeyLogin.String() + "()" // this function is defined in webauthn.js
-				attr.OnClickTrigger = js.WebAuthnTriggersPasskeyLogin
-			}),
-		).WithMetaLabel(text.NewInfoSelfServiceLoginPasskey()))
+	if sr.Type == flow.TypeBrowser {
+		if count > 0 || s.d.Config().SecurityAccountEnumerationMitigate(ctx) {
+			sr.UI.Nodes.Append(node.NewInputField(
+				node.PasskeyLoginTrigger,
+				"",
+				node.PasskeyGroup,
+				node.InputAttributeTypeButton,
+				node.WithInputAttributes(func(attr *node.InputAttributes) {
+					//nolint:staticcheck
+					attr.OnClick = js.WebAuthnTriggersPasskeyLogin.String() + "()" // this function is defined in webauthn.js
+					attr.OnClickTrigger = js.WebAuthnTriggersPasskeyLogin
+				}),
+			).WithMetaLabel(text.NewInfoSelfServiceLoginPasskey()))
+		}
 	}
 
 	if count == 0 {

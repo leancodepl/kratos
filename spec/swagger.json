@@ -6312,6 +6312,14 @@
           "description": "Flow ID is the flow's ID.\n\nin: query",
           "type": "string"
         },
+        "id_token": {
+          "description": "IDToken is an optional id token provided by an OIDC provider\n\nIf submitted, it is verified using the OIDC provider's public key set and the claims are used to populate\nthe OIDC credentials of the identity.\n\nSupported providers are\nApple\nGoogle\ntype: string\nin: body",
+          "type": "string"
+        },
+        "id_token_nonce": {
+          "description": "IDTokenNonce is the nonce, used when generating the IDToken.\nIf the provider supports nonce validation, the nonce will be validated against this value and required.\n\ntype: string\nin: body",
+          "type": "string"
+        },
         "link": {
           "description": "Link this provider\n\nEither this or `unlink` must be set.\n\ntype: string\nin: body",
           "type": "string"

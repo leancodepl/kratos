@@ -40,6 +40,7 @@ type Configuration struct {
 	// - dingtalk
 	// - linkedin
 	// - patreon
+	// - instagram
 	Provider string `json:"provider"`
 
 	// Label represents an optional label which can be used in the UI generation.
@@ -178,6 +179,7 @@ var supportedProviders = map[string]func(config *Configuration, reg Dependencies
 	"patreon":     NewProviderPatreon,
 	"lark":        NewProviderLark,
 	"x":           NewProviderX,
+	"instagram":   NewProviderInstagram,
 }
 
 func (c ConfigurationCollection) Provider(id string, reg Dependencies) (Provider, error) {
